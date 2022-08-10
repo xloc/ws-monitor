@@ -1,52 +1,58 @@
 import classNames from 'classnames';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import _ from "lodash";
+import { useWebSocket } from './useWebSocket';
 
 
-const useWebSocket = (url: string, onMessage?: (message: any) => void) => {
-  const [data, setData] = useState("");
+class Oscilloscope {
+  records: Record[];
+  drawRequestID?: number;
+  tRange: number = 20;
+  vRange: number = 2;
+  vCenter: number = 0;
 
-  const [ws, setWs] = useState<WebSocket | undefined>();
 
-  useEffect(() => {
-    const socket = new WebSocket(url);
-    socket.addEventListener('message', (event) => {
-      const str = event.data;
-      try {
-        const parsed = JSON.parse(str);
-        const pretty = JSON.stringify(parsed, null, '  ');
-        setData(pretty);
-        onMessage && onMessage(parsed);
-      } catch (error) {
-        if (error instanceof SyntaxError) {
-          console.log({ str });
-        }
-        else throw error;
-      }
-    });
+  constructor() {
+    this.records = [];
+  }
 
-    socket.addEventListener("close", () => {
-      console.log("ws closed");
+  append(record: Record) {
+    this.records.push(record);
+  }
 
-    });
+  animate(canvas: HTMLCanvasElement) {
+    const { width, height } = canvas;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
 
-    setWs(socket);
+    ctx.lineWidth = 1;
+    ctx.shadowBlur = 5;
+    ctx.shadowColor = 'white';
 
-    return () => {
-      socket.onclose = function () { };
-      socket.close();
+    const drawLoop = () => {
+      ctx.clearRect(0, 0, width, height);
+      ctx.beginPath();
+      ctx.lineTo(0, 0);
+      ctx.lineTo(width / 2, height / 3 * 2);
+      ctx.lineTo(width, height);
+      ctx.stroke();
     };
-  }, []);
 
-  return {
-    json: data,
-    close: () => {
-      if (!ws) return;
-      ws.onclose = function () { };
-      ws.close();
-    }
-  };
-};
+    this.drawRequestID = requestAnimationFrame(drawLoop);
+  }
+
+  stop() {
+    this.drawRequestID && cancelAnimationFrame(this.drawRequestID);
+  }
+
+  draw(ctx: CanvasRenderingContext2D, x: number, y: number, h: number, w: number) {
+
+  }
+}
+
+
+
+
 
 interface Record {
   [key: string]: number;
@@ -54,24 +60,40 @@ interface Record {
 
 function App() {
   const [sequence, setSequence] = useState<Record[]>([]);
+  const canvasRef = useRef(null);
 
   const { json, close } = useWebSocket('ws://10.0.0.5/ws', (message) => {
     setSequence((prev) => ([...prev, ...message]));
   });
 
-  return (
-    <div className="flex h-screen justify-center items-center">
-      <div className='flex flex-col items-center'>
-        <h1 className="text-5xl">Hello World!</h1>
-        <button
-          className='h-10 w-40 text-lg rounded-lg bg-slate-600 text-white m-3'
-          onClick={() => { close(); }}>Close WebSocket</button>
-        <pre className='border rounded-md w-[30rem] h-[20rem] overflow-y-scroll'>
-          {/* {json} */}
-          {JSON.stringify(sequence, null, 2)}
-        </pre>
-      </div>
+  useEffect(() => {
+    if (!canvasRef.current) return;
+    const canvas = canvasRef.current as HTMLCanvasElement;
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
 
+    const osc = new Oscilloscope();
+
+    osc.animate(canvas);
+
+    return () => {
+      osc.stop();
+    };
+  }, [canvasRef]);
+
+
+
+
+  return (
+    <div className="w-screen h-screen justify-center items-center relative">
+      <ul className='m-3 absolute'>
+        <li><button
+          className='p-2 rounded-lg shadow-lg'
+          onClick={() => { close(); }}>Disconnect
+        </button></li>
+
+      </ul>
+      <canvas className='w-screen h-screen absolute' ref={canvasRef}></canvas>
     </div >
   );
 }

@@ -1,16 +1,28 @@
+import _ from "lodash";
 import { Record } from "./Record";
 import wave from './wave.json';
 
+class Range {
+    constructor(public st: number, public ed: number) { }
+
+    public get span(): number {
+        return this.ed - this.st;
+    }
+
+    normalize(value: number): number {
+        value = _.clamp(value, this.st, this.ed);
+        value = (value - this.st) / this.span;
+        return value
+    }
+}
 
 
 export class Oscilloscope {
     records: Record[];
     drawRequestID?: number;
-    tRange: number = 10;
-    tEnd: number = 11;
-    vRange: number = 4;
-    vCenter: number = 0;
 
+    tRange = new Range(-1, 12);
+    vRange = new Range(-1, 1);
 
     constructor() {
         this.records = [];
@@ -31,7 +43,7 @@ export class Oscilloscope {
 
         const drawLoop = () => {
             ctx.clearRect(0, 0, width, height);
-            this.draw(ctx, 0, 0, width, height);
+            this.draw(ctx, width, height);
         };
 
         this.drawRequestID = requestAnimationFrame(drawLoop);
@@ -41,27 +53,16 @@ export class Oscilloscope {
         this.drawRequestID && cancelAnimationFrame(this.drawRequestID);
     }
 
-    draw(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) {
+    draw(ctx: CanvasRenderingContext2D, w: number, h: number) {
         ctx.beginPath();
-        // ctx.lineTo(0, 0);
-        // ctx.lineTo(w / 2, h / 3);
-        // ctx.lineTo(w, h);
 
-        const getT: any = (o: { t: number }) => o.t;
-
-        let i = wave.length - 1;
-        let tStart = getT(wave[i]) - this.tRange;
-        if (this.tEnd !== Infinity) {
-            i = bisect_left(wave, getT, this.tEnd);
-            tStart = getT(wave[i]) - this.tRange;
-        }
-        for (; i >= 0 && tStart < getT(wave[i]); i--) {
+        let i = bisect_left(wave, (o) => o.t, this.tRange.st);
+        for (; i < wave.length; i++) {
             const pt = wave[i];
-            const value = pt.bb;
-            const t = pt.t;
+            if (pt.t > this.tRange.ed) break;
 
-            const x = w - t * w / this.tRange;
-            const y = h - value * h / this.vRange - h / 2;
+            const x = w * this.tRange.normalize(pt.t);
+            const y = h - h * this.vRange.normalize(pt.bb);
 
             ctx.lineTo(x, y);
         }

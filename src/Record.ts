@@ -2,5 +2,5 @@
 
 
 export interface Record {
-    [key: string]: number;
+  [key: string]: number;
 }

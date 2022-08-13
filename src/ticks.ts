@@ -1,7 +1,7 @@
 import { linspace } from "./linspace";
 import { Range } from "./Range";
 
-export const calcScaleOffset = (range: Range, n = 1, threshold = 100) => {
+export const calcScaleOffset = (range: Range, n = 1, threshold = 10) => {
   let offset;
   const mean = range.center;
   if (Math.abs(mean) / range.span < threshold) {
@@ -22,6 +22,18 @@ export const calcScaleOffset = (range: Range, n = 1, threshold = 100) => {
 
   return { offset, scale };
 };
+
+
+if (import.meta.vitest) {
+  const { it, expect } = import.meta.vitest;
+  it('calcScaleOffset', () => {
+    expect(calcScaleOffset(new Range(0, 10))).toStrictEqual({ offset: 0, scale: 10 });
+    expect(calcScaleOffset(new Range(0, 50))).toStrictEqual({ offset: 0, scale: 10 });
+    expect(calcScaleOffset(new Range(0, 100))).toStrictEqual({ offset: 0, scale: 100 });
+    expect(calcScaleOffset(new Range(100, 101))).toStrictEqual({ offset: 100, scale: 1 });
+    expect(calcScaleOffset(new Range(10, 11))).toStrictEqual({ offset: 10, scale: 1 });
+  });
+}
 
 
 export const calcTicks = (range: Range, nTicks: number) => {

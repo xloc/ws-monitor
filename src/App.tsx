@@ -18,10 +18,17 @@ function App() {
   useEffect(() => {
     if (!canvasRef.current) return;
     const canvas = canvasRef.current as HTMLCanvasElement;
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    const scale = window.devicePixelRatio;
+    canvas.width = window.innerWidth * scale;
+    canvas.height = window.innerHeight * scale;
 
     const osc = new Oscilloscope();
+
+    canvas.addEventListener("wheel", (event) => {
+      event.preventDefault();
+      event = event as WheelEvent;
+      osc.tRange.zoom(event.deltaY * 0.01);
+    }, { passive: false });
 
     osc.animate(canvas);
 

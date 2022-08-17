@@ -1,7 +1,9 @@
+import _ from "lodash";
+import { bisectLeft } from "./bisect";
 import { linspace } from "./linspace";
 import { Range } from "./Range";
 
-export const calcScaleOffset = (range: Range, n = 1, threshold = 10) => {
+export const calcScaleOffset = (range: Range, threshold = 10) => {
   let offset;
   const mean = range.center;
   if (Math.abs(mean) / range.span < threshold) {
@@ -16,11 +18,14 @@ export const calcScaleOffset = (range: Range, n = 1, threshold = 10) => {
 
   let scale = Math.pow(10,
     Math.floor(
-      Math.log10(range.span / n)
+      Math.log10(range.span)
     )
   );
 
   return { offset, scale };
+};
+
+const nDecimalPlaces = (n: number) => {
 };
 
 
@@ -37,19 +42,37 @@ if (import.meta.vitest) {
 
 
 export const calcTicks = (range: Range, nTicks: number) => {
-  range = nonsigular(range);
+  // range = nonsigular(range);
 
-  const { offset, scale } = calcScaleOffset(range, 9);
+  // TODO:
+  // nonsingular, ensure one point in the scene, exponential scale rather than linear now
+
+  let { offset, scale } = calcScaleOffset(range, 9);
   const rawStep = range.span / nTicks;
+  let stepScale = Math.pow(10, Math.floor(Math.log10(rawStep)));
+  let ticks = [1, 2, 5, 10];
 
-  let st = range.st - offset;
-  let ed = range.ed - offset;
-  [st, ed] = [range.st, range.ed]
-    .map(v => v - offset)
-    .map(v => Math.round(v * scale) / scale)
-    .map(v => v + offset);
+  let step: number;
+  step = rawStep / stepScale;
+  if (Number.isFinite(step) && !Number.isNaN(step) && step) {
+    step = _(ticks)
+      .map((v) => ({ d: Math.abs(v - step), v }))
+      .minBy((v) => v.d)!.v;
+    step *= stepScale;
+  }
 
-  return linspace(st, ed, nTicks);
+
+  let v;
+
+  v = range.st;
+  v = Math.ceil(v / scale) * scale;
+  const st = v;
+
+  v = range.ed;
+  v = Math.floor(v / scale) * scale;
+  const ed = v;
+
+  return { ticks: [..._.range(st, range.st, -step), ..._.range(st, range.ed, step)], offset, scale, st, ed, step };
 };
 
 

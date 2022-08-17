@@ -1,5 +1,6 @@
 import classNames from "classnames";
 import _ from "lodash";
+import { bisectLeft } from "./bisect";
 import { linspace } from "./linspace";
 import { Range } from "./Range";
 import { Record } from "./Record";
@@ -51,7 +52,7 @@ export class Oscilloscope {
     ctx.strokeStyle = "navy";
     ctx.lineWidth = 3;
 
-    let i = bisect_left(wave, (o) => o.t, this.tRange.st);
+    let i = bisectLeft(wave, (o) => o.t, this.tRange.st);
     for (; i < wave.length; i++) {
       const pt = wave[i];
       if (pt.t > this.tRange.ed) break;
@@ -67,8 +68,16 @@ export class Oscilloscope {
     ctx.strokeStyle = "#aaa";
     ctx.lineWidth = 1;
 
+    ctx.textAlign = "right";
+    ctx.fillText(`${this.tRange.span}`, w, 100);
+
     // draw horizontal ticks;
-    calcTicks(this.tRange, 10).forEach(v => {
+    const result = calcTicks(this.tRange, 10);
+    ctx.fillText(`offset: ${result.offset}, scale: ${result.scale}`, w, 150);
+    ctx.fillText(`st: ${result.st.toFixed(3)}, ed: ${result.ed.toFixed(3)}`, w, 200);
+    ctx.fillText(`step: ${result.step}`, w, 250);
+
+    result.ticks.forEach((v) => {
       const x = w * this.tRange.normalize(v);
       ctx.beginPath();
       ctx.lineTo(x, 0);
@@ -83,15 +92,4 @@ export class Oscilloscope {
 }
 
 
-function bisect_left<T>(arr: T[], key: (arg: T) => number, t: number): number {
-  let lo = 0, hi = arr.length - 1;
-  while (lo < hi) {
-    const mid = Math.floor((lo + hi) / 2);
-    if (t < key(arr[mid])) {
-      hi = mid;
-    } else {
-      lo = mid + 1;
-    }
-  }
-  return lo;
-}
+
